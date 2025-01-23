@@ -30,8 +30,37 @@ const WebRTCSources: React.FC = () => {
             }
         };
 
-        getDevices();
+
+
+        // Example usage
+        (async () => {
+            const hasPermission = await requestDevicePermission();
+            if (hasPermission) {
+                getDevices();
+            } else {
+                console.log('Cannot list devices without permission.');
+            }
+        })();
     }, []);
+
+    // Request permission for media devices
+    async function requestDevicePermission() {
+        try {
+            // Request access to audio and video devices
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+
+            console.log('Permission granted:', stream);
+
+            // Release the media stream after permission is granted
+            const tracks = stream.getTracks();
+            tracks.forEach(track => track.stop());
+
+            return true; // Permission granted
+        } catch (error) {
+            console.error('Permission denied or error occurred:', error);
+            return false; // Permission denied
+        }
+    }
 
     useEffect(() => {
         if (lastImageRef.current) {
@@ -98,7 +127,7 @@ const WebRTCSources: React.FC = () => {
                     // If motion is detected, record the time it was detected
                     if (motionDetectedAt === null) {
                         motionDetectedAt = Date.now();
-                    } else if (Date.now() - motionDetectedAt >  1000 && oneShot) {
+                    } else if (Date.now() - motionDetectedAt > 1000 && oneShot) {
                         // If motion has been detected for more than 1 second, capture image
                         captureImage();
                         motionDetectedAt = null; // Reset after capturing image
