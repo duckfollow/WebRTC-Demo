@@ -1,11 +1,11 @@
 import styles from "./page.module.css";
-import SelectSources from "./components/SelectSources/SelectSources";
+import WebRTCSources from "./components/WebRTCSources";
 
 const Home: React.FC = () => {
   return (
     <div className={styles.page}>
       <main className={styles.main}>
-        <SelectSources/>
+        <WebRTCSources/>
       </main>
     </div>
   );

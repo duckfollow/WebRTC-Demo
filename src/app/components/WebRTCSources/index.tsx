@@ -5,7 +5,7 @@ import { Box, Typography, MenuItem, Select, FormControl, InputLabel } from "@mui
 
 type MediaDevice = MediaDeviceInfo;
 
-const SelectSources: React.FC = () => {
+const WebRTCSources: React.FC = () => {
     const [videoDevices, setVideoDevices] = useState<MediaDevice[]>([]);
     const [audioDevices, setAudioDevices] = useState<MediaDevice[]>([]);
     const [currentStream, setCurrentStream] = useState<MediaStream | null>(null);
@@ -98,7 +98,7 @@ const SelectSources: React.FC = () => {
                     // If motion is detected, record the time it was detected
                     if (motionDetectedAt === null) {
                         motionDetectedAt = Date.now();
-                    } else if (Date.now() - motionDetectedAt > 500 && oneShot) {
+                    } else if (Date.now() - motionDetectedAt >  1000 && oneShot) {
                         // If motion has been detected for more than 1 second, capture image
                         captureImage();
                         motionDetectedAt = null; // Reset after capturing image
@@ -284,7 +284,7 @@ const SelectSources: React.FC = () => {
                 <Typography variant="h6" color="error" sx={{ marginBottom: 2 }}>
                     {`${noMotionDetected ? 'No motion detected!' : 'motion detected!'}`}
                 </Typography>
-                
+
                 <video
                     ref={videoOutputRef}
                     autoPlay
@@ -325,4 +325,4 @@ const SelectSources: React.FC = () => {
     );
 };
 
-export default SelectSources;
+export default WebRTCSources;
