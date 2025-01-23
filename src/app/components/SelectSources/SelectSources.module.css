@@ -1,0 +1,24 @@
+.container {
+    padding: 20px;
+}
+
+.container h1 {
+    font-size: 24px;
+    margin-bottom: 10px;
+}
+
+.container select {
+    margin: 10px 0;
+    padding: 5px;
+}
+
+.container video {
+    display: block;
+    margin-top: 10px;
+    border: 1px solid #ccc;
+}
+
+.container audio {
+    display: block;
+    margin-top: 10px;
+}
