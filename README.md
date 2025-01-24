@@ -1,3 +1,34 @@
+# WebRTCSources Component Overview
+
+The WebRTCSources React component provides a user interface to select video and audio sources using WebRTC and displays the video feed with motion detection and image capture functionality. Below is a concise explanation of its key features:
+
+## Features:
+1. **Device Selection**:
+   - Fetches available video (`videoinput`) and audio (`audioinput`) devices using `navigator.mediaDevices.enumerateDevices`.
+   - Allows users to select the desired video and audio sources from dropdown menus.
+   
+2. **Video Streaming**:
+   - Starts a video stream from the selected video source.
+   - Outputs the video stream in a `<video>` element.
+
+3. **Motion Detection**:
+   - Compares consecutive video frames to detect motion.
+   - Displays a “Motion detected!” or “No motion detected!” message based on the results.
+
+4. **Image Capture**:
+   - Captures a still image when no motion is detected for more than 1 second.
+   - Stores captured images as base64 strings and displays them in a scrollable list.
+
+5. **Sound Feedback**:
+   - Plays a capture sound when an image is captured.
+
+6. **Unique Image Detection**:
+   - Ensures captured images are unique by comparing pixel data with the last captured image.
+
+
+# DEMO
+[https://tech.duckfollow.co/view/capturevideo](https://tech.duckfollow.co/view/capturevideo)
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
@@ -15,22 +46,3 @@ bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
