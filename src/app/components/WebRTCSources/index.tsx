@@ -83,9 +83,12 @@ const WebRTCSources: React.FC = () => {
             stopStream(currentStream);
 
             const constraints: MediaStreamConstraints = {
-                video: videoDeviceId
-                    ? { deviceId: { exact: videoDeviceId } }
-                    : true,
+                video: {
+                    deviceId: videoDeviceId ? { exact: videoDeviceId } : undefined,
+                    width: { exact: 1920 },
+                    height: { exact: 1080 },
+                },
+                audio: false,
                 // audio: audioDeviceId ? { deviceId: { exact: audioDeviceId } } : true,
             };
 
