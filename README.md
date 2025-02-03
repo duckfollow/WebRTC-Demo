@@ -27,7 +27,7 @@ The WebRTCSources React component provides a user interface to select video and 
 
 
 ## DEMO
-Link Demo:[https://tech.duckfollow.co/view/capturevideo](https://tech.duckfollow.co/view/capturevideo)
+Link Demo:[https://tech.duckfollow.co/view/capturevideo-demo](https://tech.duckfollow.co/view/capturevideo-demo)
 
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
