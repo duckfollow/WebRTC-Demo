@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebRTC Media Device Sources</title>
+</head>
+
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        background-color: #f0f0f0;
+    }
+
+    .container {
+        padding: 20px;
+        background-color: #fff;
+        border-radius: 8px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        width: 80%;
+        max-width: 800px;
+    }
+
+    h1 {
+        margin-bottom: 20px;
+    }
+
+    .form-control {
+        margin-bottom: 20px;
+    }
+
+    label {
+        display: block;
+        margin-bottom: 8px;
+    }
+
+    select {
+        width: 100%;
+        padding: 10px;
+        border-radius: 4px;
+        border: 1px solid #ccc;
+    }
+
+    .video-output {
+        margin-top: 20px;
+    }
+
+    motion-status {
+        color: red;
+        font-size: 16px;
+        font-weight: bold;
+    }
+
+    img {
+        margin-right: 10px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+    }
+
+    .captured-images {
+        display: flex;
+        overflow-x: auto;
+        margin-top: 20px;
+    }
+
+    .captured-images img {
+        width: 150px;
+        height: 100px;
+        margin-right: 10px;
+    }
+</style>
+
+<body>
+    <div class="container">
+        <h1>WebRTC: Select Video & Audio Sources</h1>
+
+        <div class="form-control">
+            <label for="video-select">Select Video Source</label>
+            <select id="video-select">
+                <option value="">Select Video Source</option>
+            </select>
+        </div>
+
+        <div class="video-output">
+            <h2>Video Output</h2>
+            <p id="motion-status" class="motion-status">No motion detected!</p>
+            <video id="video-output" autoplay playsinline width="640" height="480"></video>
+            <canvas id="canvas-output" width="640" height="480" style="display: none;"></canvas>
+        </div>
+
+        <h2>Image Capture <span id="captured-image-count">0</span> Pic(s)</h2>
+        <div class="captured-images"></div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const videoSelect = document.getElementById("video-select");
+            const videoOutput = document.getElementById("video-output");
+            const canvasOutput = document.getElementById("canvas-output");
+            const motionStatus = document.getElementById("motion-status");
+            const capturedImagesContainer = document.querySelector(".captured-images");
+            const capturedImageCount = document.getElementById("captured-image-count");
+
+            let videoDevices = [];
+            let currentStream = null;
+            let capturedImages = [];
+            let noMotionDetected = false;
+
+            // Get video devices
+            async function getDevices() {
+                try {
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    videoDevices = devices.filter(device => device.kind === "videoinput");
+                    populateVideoSelect();
+                } catch (error) {
+                    console.error("Error fetching devices:", error);
+                }
+            }
+
+            // Populate video source dropdown
+            function populateVideoSelect() {
+                videoDevices.forEach(device => {
+                    const option = document.createElement("option");
+                    option.value = device.deviceId;
+                    option.textContent = device.label || `Camera ${videoDevices.indexOf(device) + 1}`;
+                    videoSelect.appendChild(option);
+                });
+            }
+
+            // Start video stream
+            async function startStream(videoDeviceId) {
+                if (currentStream) {
+                    currentStream.getTracks().forEach(track => track.stop());
+                }
+
+                const constraints = {
+                    video: {
+                        deviceId: videoDeviceId ? { exact: videoDeviceId } : undefined,
+                        width: { exact: 1920 },
+                        height: { exact: 1080 }
+                    },
+                    audio: false
+                };
+
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                    videoOutput.srcObject = stream;
+                    currentStream = stream;
+                    detectMotion();
+                } catch (error) {
+                    console.error("Error accessing media devices:", error);
+                }
+            }
+
+            // Detect motion
+            function detectMotion() {
+                const context = canvasOutput.getContext("2d");
+                let lastImageData = null;
+                let motionDetectedAt = null;
+                let oneShot = true;
+
+                function checkForMotion() {
+                    if (!context) return;
+
+                    context.drawImage(videoOutput, 0, 0, canvasOutput.width, canvasOutput.height);
+                    const currentImageData = context.getImageData(0, 0, canvasOutput.width, canvasOutput.height);
+
+                    if (lastImageData) {
+                        const motion = isMotionDetected(lastImageData, currentImageData);
+                        if (!motion) {
+                            if (motionDetectedAt === null) {
+                                motionDetectedAt = Date.now();
+                            } else if (Date.now() - motionDetectedAt > 1000 && oneShot) {
+                                captureImage();
+                                motionDetectedAt = null;
+                                oneShot = false;
+                            }
+                        } else {
+                            motionDetectedAt = null;
+                            oneShot = true;
+                        }
+
+                        noMotionDetected = !motion;
+                        motionStatus.textContent = noMotionDetected ? "No motion detected!" : "Motion detected!";
+                    }
+
+                    lastImageData = currentImageData;
+                    requestAnimationFrame(checkForMotion);
+                }
+
+                checkForMotion();
+            }
+
+            // Compare images for motion detection
+            function isMotionDetected(prev, curr) {
+                const threshold = 50;
+                const motionPixels = 500;
+                let diffCount = 0;
+
+                for (let i = 0; i < prev.data.length; i += 4) {
+                    const diff = Math.abs(prev.data[i] - curr.data[i]) + Math.abs(prev.data[i + 1] - curr.data[i + 1]) + Math.abs(prev.data[i + 2] - curr.data[i + 2]);
+                    if (diff > threshold) diffCount++;
+                    if (diffCount > motionPixels) return true;
+                }
+
+                return false;
+            }
+
+            // Capture image
+            function captureImage() {
+                const context = canvasOutput.getContext("2d");
+                if (!context) return;
+
+                context.drawImage(videoOutput, 0, 0, canvasOutput.width, canvasOutput.height);
+                const imageDataUrl = canvasOutput.toDataURL("image/png");
+
+                // Add image if unique
+                if (isImageUnique(imageDataUrl)) {
+                    capturedImages.push(imageDataUrl);
+                    capturedImageCount.textContent = capturedImages.length;
+                    const captureSound = new Audio("iphone-camera-capture-6448.mp3"); // Ensure the file path is correct
+                    captureSound.play();
+                    updateCapturedImages();
+                }
+            }
+
+            // Check if image is unique
+            function isImageUnique(newImage) {
+                if (capturedImages.length === 0) return true;
+
+                const lastCapturedImage = capturedImages[capturedImages.length - 1];
+                return newImage !== lastCapturedImage;
+            }
+
+            // Update captured images in UI
+            function updateCapturedImages() {
+                capturedImagesContainer.innerHTML = "";
+                capturedImages.forEach(imageSrc => {
+                    const img = document.createElement("img");
+                    img.src = imageSrc;
+                    img.alt = "Captured Image";
+                    capturedImagesContainer.appendChild(img);
+                });
+            }
+
+            // Set up event listener for video select
+            videoSelect.addEventListener("change", () => {
+                startStream(videoSelect.value);
+            });
+
+            // Initialize devices and permissions
+            async function init() {
+                const hasPermission = await requestDevicePermission();
+                if (hasPermission) {
+                    getDevices();
+                } else {
+                    console.log("Cannot list devices without permission.");
+                }
+            }
+
+            // Request permission for media devices
+            async function requestDevicePermission() {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+                    const tracks = stream.getTracks();
+                    tracks.forEach(track => track.stop());
+                    return true;
+                } catch (error) {
+                    console.error("Permission denied or error occurred:", error);
+                    return false;
+                }
+            }
+
+            init();
+        });
+    </script>
+</body>
+
+</html>

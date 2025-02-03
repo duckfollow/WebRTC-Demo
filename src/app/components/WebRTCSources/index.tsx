@@ -7,13 +7,13 @@ type MediaDevice = MediaDeviceInfo;
 
 const WebRTCSources: React.FC = () => {
     const [videoDevices, setVideoDevices] = useState<MediaDevice[]>([]);
-    const [audioDevices, setAudioDevices] = useState<MediaDevice[]>([]);
+    // const [audioDevices, setAudioDevices] = useState<MediaDevice[]>([]);
     const [currentStream, setCurrentStream] = useState<MediaStream | null>(null);
     const [capturedImages, setCapturedImages] = useState<string[]>([]);  // Store captured images as base64 strings
     const [noMotionDetected, setNoMotionDetected] = useState(false);
 
     const videoSelectRef = useRef<HTMLSelectElement | null>(null);
-    const audioSelectRef = useRef<HTMLSelectElement | null>(null);
+    // const audioSelectRef = useRef<HTMLSelectElement | null>(null);
     const videoOutputRef = useRef<HTMLVideoElement | null>(null);
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -24,7 +24,7 @@ const WebRTCSources: React.FC = () => {
             try {
                 const devices = await navigator.mediaDevices.enumerateDevices();
                 setVideoDevices(devices.filter((device) => device.kind === "videoinput"));
-                setAudioDevices(devices.filter((device) => device.kind === "audioinput"));
+                // setAudioDevices(devices.filter((device) => device.kind === "audioinput"));
             } catch (error) {
                 console.error("Error fetching devices:", error);
             }
@@ -78,7 +78,7 @@ const WebRTCSources: React.FC = () => {
         }
     };
 
-    const startStream = async (videoDeviceId: string, audioDeviceId: string) => {
+    const startStream = async (videoDeviceId: string/*, audioDeviceId: string*/) => {
         try {
             stopStream(currentStream);
 
@@ -272,7 +272,7 @@ const WebRTCSources: React.FC = () => {
                     onChange={() =>
                         startStream(
                             videoSelectRef.current?.value || "",
-                            audioSelectRef.current?.value || ""
+                            // audioSelectRef.current?.value || ""
                         )
                     }
                     defaultValue=""
