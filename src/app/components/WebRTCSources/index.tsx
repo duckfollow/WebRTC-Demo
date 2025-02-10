@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { Box, Typography, MenuItem, Select, FormControl, InputLabel } from "@mui/material";
+import { Box, Typography, MenuItem, Select, FormControl, InputLabel, Button } from "@mui/material";
 
 type MediaDevice = MediaDeviceInfo;
 
@@ -18,6 +18,11 @@ const WebRTCSources: React.FC = () => {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
     const lastImageRef = useRef<HTMLImageElement | null>(null);
+
+    // เพิ่ม state สำหรับบันทึกวิดีโอ
+    const [recordedChunks, setRecordedChunks] = useState<Blob[]>([]);
+    const [isRecording, setIsRecording] = useState(false);
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
 
     useEffect(() => {
         const getDevices = async () => {
@@ -258,6 +263,44 @@ const WebRTCSources: React.FC = () => {
         }
     };
 
+        // ฟังก์ชันเริ่มบันทึกวิดีโอ
+        const startRecording = () => {
+            if (!currentStream) return;
+    
+            const recorder = new MediaRecorder(currentStream, { mimeType: "video/webm" });
+            mediaRecorderRef.current = recorder;
+            setRecordedChunks([]);
+    
+            recorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    setRecordedChunks((prev) => [...prev, event.data]);
+                }
+            };
+    
+            recorder.start();
+            setIsRecording(true);
+        };
+    
+        // ฟังก์ชันหยุดบันทึกวิดีโอ
+        const stopRecording = () => {
+            mediaRecorderRef.current?.stop();
+            setIsRecording(false);
+        };
+    
+        // ดาวน์โหลดวิดีโอที่บันทึกไว้
+        const downloadVideo = () => {
+            if (recordedChunks.length === 0) return;
+    
+            const blob = new Blob(recordedChunks, { type: "video/webm" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "recorded-video.webm";
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+        };
+
     return (
         <Box sx={{ padding: 2 }}>
             <Typography variant="h4" gutterBottom>
@@ -353,6 +396,41 @@ const WebRTCSources: React.FC = () => {
                     </Box>
                 ))}
             </Box>
+
+            <Box sx={{ marginTop: 2 }}>
+                <Button 
+                    variant="contained" 
+                    color={isRecording ? "secondary" : "primary"} 
+                    onClick={isRecording ? stopRecording : startRecording}
+                >
+                    {isRecording ? "Stop Recording" : "Start Recording"}
+                </Button>
+
+                {recordedChunks.length > 0 && (
+                    <Button
+                        variant="contained"
+                        color="success"
+                        sx={{ marginLeft: 2 }}
+                        onClick={downloadVideo}
+                    >
+                        Download Video
+                    </Button>
+                )}
+            </Box>
+
+            {recordedChunks.length > 0 && (
+                <Box sx={{ marginTop: 2 }}>
+                    <Typography variant="h6">Recorded Video Preview</Typography>
+                    <video
+                        controls
+                        width={640}
+                        height={480}
+                        style={{ border: "1px solid #ccc", display: "block", marginTop: 2 }}
+                    >
+                        <source src={URL.createObjectURL(new Blob(recordedChunks, { type: "video/webm" }))} type="video/webm" />
+                    </video>
+                </Box>
+            )}
         </Box>
     );
 };
