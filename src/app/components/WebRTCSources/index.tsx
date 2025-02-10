@@ -263,43 +263,68 @@ const WebRTCSources: React.FC = () => {
         }
     };
 
-        // ฟังก์ชันเริ่มบันทึกวิดีโอ
-        const startRecording = () => {
-            if (!currentStream) return;
-    
-            const recorder = new MediaRecorder(currentStream, { mimeType: "video/webm" });
-            mediaRecorderRef.current = recorder;
-            setRecordedChunks([]);
-    
-            recorder.ondataavailable = (event) => {
-                if (event.data.size > 0) {
-                    setRecordedChunks((prev) => [...prev, event.data]);
-                }
-            };
-    
-            recorder.start();
-            setIsRecording(true);
+    // ฟังก์ชันเริ่มบันทึกวิดีโอ
+    const startRecording = () => {
+        if (!currentStream) return;
+
+        const recorder = new MediaRecorder(currentStream, { mimeType: "video/webm" });
+        mediaRecorderRef.current = recorder;
+        setRecordedChunks([]);
+
+        recorder.ondataavailable = (event) => {
+            if (event.data.size > 0) {
+                setRecordedChunks((prev) => [...prev, event.data]);
+            }
         };
+
+        recorder.start();
+        setIsRecording(true);
+    };
+
+    // ฟังก์ชันหยุดบันทึกวิดีโอ
+    const stopRecording = () => {
+        mediaRecorderRef.current?.stop();
+        setIsRecording(false);
+    };
+
+    // ดาวน์โหลดวิดีโอที่บันทึกไว้
+    const downloadVideo = () => {
+        if (recordedChunks.length === 0) return;
+
+        const blob = new Blob(recordedChunks, { type: "video/webm" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "recorded-video.webm";
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+    };
+
+    async function connectSerial() {
+        try {
+            // ขออนุญาตเชื่อมต่อกับ Serial Port
+            const port = await (navigator as any).serial.requestPort();
+            await port.open({ baudRate: 9600 }); // ตั้งค่า baud rate ให้ตรงกับอุปกรณ์
     
-        // ฟังก์ชันหยุดบันทึกวิดีโอ
-        const stopRecording = () => {
-            mediaRecorderRef.current?.stop();
-            setIsRecording(false);
-        };
+            // อ่านข้อมูลจาก Serial Port
+            const reader = port.readable.getReader();
     
-        // ดาวน์โหลดวิดีโอที่บันทึกไว้
-        const downloadVideo = () => {
-            if (recordedChunks.length === 0) return;
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) break; // ออกจากลูปเมื่อไม่มีข้อมูล
     
-            const blob = new Blob(recordedChunks, { type: "video/webm" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = "recorded-video.webm";
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-        };
+                // แปลงข้อมูลจาก Uint8Array เป็นข้อความ
+                const text = new TextDecoder().decode(value);
+                console.log("Received:", text);
+            }
+    
+            reader.releaseLock();
+            await port.close();
+        } catch (error) {
+            console.error("Error:", error);
+        }
+    }
 
     return (
         <Box sx={{ padding: 2 }}>
@@ -398,9 +423,9 @@ const WebRTCSources: React.FC = () => {
             </Box>
 
             <Box sx={{ marginTop: 2 }}>
-                <Button 
-                    variant="contained" 
-                    color={isRecording ? "secondary" : "primary"} 
+                <Button
+                    variant="contained"
+                    color={isRecording ? "secondary" : "primary"}
                     onClick={isRecording ? stopRecording : startRecording}
                 >
                     {isRecording ? "Stop Recording" : "Start Recording"}
@@ -431,6 +456,8 @@ const WebRTCSources: React.FC = () => {
                     </video>
                 </Box>
             )}
+
+            <Button variant='contained' onClick={connectSerial}>Connect Serial Port</Button>
         </Box>
     );
 };
