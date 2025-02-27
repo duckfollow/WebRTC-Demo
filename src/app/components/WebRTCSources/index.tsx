@@ -7,13 +7,14 @@ type MediaDevice = MediaDeviceInfo;
 
 const WebRTCSources: React.FC = () => {
     const [videoDevices, setVideoDevices] = useState<MediaDevice[]>([]);
-    // const [audioDevices, setAudioDevices] = useState<MediaDevice[]>([]);
+    const [audioDevices, setAudioDevices] = useState<MediaDevice[]>([]);
     const [currentStream, setCurrentStream] = useState<MediaStream | null>(null);
     const [capturedImages, setCapturedImages] = useState<string[]>([]);  // Store captured images as base64 strings
     const [noMotionDetected, setNoMotionDetected] = useState(false);
+    const [audioLevel, setAudioLevel] = useState(0);  // Audio level state
 
     const videoSelectRef = useRef<HTMLSelectElement | null>(null);
-    // const audioSelectRef = useRef<HTMLSelectElement | null>(null);
+    const audioSelectRef = useRef<HTMLSelectElement | null>(null);
     const videoOutputRef = useRef<HTMLVideoElement | null>(null);
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -24,18 +25,20 @@ const WebRTCSources: React.FC = () => {
     const [isRecording, setIsRecording] = useState(false);
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
 
+    const analyserRef = useRef<AnalyserNode | null>(null);
+    const audioContextRef = useRef<AudioContext | null>(null);
+
     useEffect(() => {
         const getDevices = async () => {
             try {
                 const devices = await navigator.mediaDevices.enumerateDevices();
+                console.log("ddd", devices)
                 setVideoDevices(devices.filter((device) => device.kind === "videoinput"));
-                // setAudioDevices(devices.filter((device) => device.kind === "audioinput"));
+                setAudioDevices(devices.filter((device) => device.kind === "audioinput"));
             } catch (error) {
                 console.error("Error fetching devices:", error);
             }
         };
-
-
 
         // Example usage
         (async () => {
@@ -83,7 +86,7 @@ const WebRTCSources: React.FC = () => {
         }
     };
 
-    const startStream = async (videoDeviceId: string/*, audioDeviceId: string*/) => {
+    const startStream = async (videoDeviceId: string, audioDeviceId: string) => {
         try {
             stopStream(currentStream);
 
@@ -93,8 +96,8 @@ const WebRTCSources: React.FC = () => {
                     width: { exact: 1920 },
                     height: { exact: 1080 },
                 },
-                audio: false,
-                // audio: audioDeviceId ? { deviceId: { exact: audioDeviceId } } : true,
+                // audio: true,
+                audio: audioDeviceId ? { deviceId: { exact: audioDeviceId } } : true,
             };
 
             const stream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -103,11 +106,54 @@ const WebRTCSources: React.FC = () => {
                 videoOutputRef.current.srcObject = stream;
             }
             setCurrentStream(stream);
+            setupAudioAnalyser(stream);
 
             detectMotion();
         } catch (error) {
             console.error("Error accessing media devices:", error);
         }
+    };
+
+    // Function to set up audio analyser
+    const setupAudioAnalyser = (stream: MediaStream) => {
+        if (!audioContextRef.current) {
+            audioContextRef.current = new AudioContext();
+        }
+
+        const audioContext = audioContextRef.current;
+
+        // Create an analyser node
+        analyserRef.current = audioContext.createAnalyser();
+        const source = audioContext.createMediaStreamSource(stream);
+        source.connect(analyserRef.current);
+
+        // Set analyser node properties
+        analyserRef.current.fftSize = 256;  // Size of FFT (Frequency-domain)
+        const bufferLength = analyserRef.current.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+        let oneShot = true;
+
+        // Monitor audio level
+        const monitorAudioLevel = () => {
+            analyserRef.current?.getByteFrequencyData(dataArray);
+            let sum = 0;
+            for (let i = 0; i < bufferLength; i++) {
+                sum += dataArray[i];
+            }
+            const average = sum / bufferLength;
+            setAudioLevel(average);  // Set the audio level state
+            if (average > 5 && oneShot) {
+                oneShot = false;
+                captureImage();
+            } else if (average <= 0) {
+                oneShot = true;
+            }
+
+            console.log("oneShot2", oneShot)
+            requestAnimationFrame(monitorAudioLevel);
+        };
+
+        monitorAudioLevel();
     };
 
     const detectMotion = () => {
@@ -214,7 +260,7 @@ const WebRTCSources: React.FC = () => {
                 const previousImageData = prevContext?.getImageData(0, 0, prevCanvas.width, prevCanvas.height);
 
                 // Compare the current image with the previous one
-                console.log("check image unique", isImagesEqual(newImageData, previousImageData))
+                // console.log("check image unique", isImagesEqual(newImageData, previousImageData))
                 if (isImagesEqual(newImageData, previousImageData)) {
                     return false; // Images are the same
                 }
@@ -258,8 +304,8 @@ const WebRTCSources: React.FC = () => {
             setCapturedImages((prevImages) => [...prevImages, imageDataUrl]);
 
             // Play sound after capturing image
-            const captureSound = new Audio("/iphone-camera-capture-6448.mp3"); // Ensure the file path is correct
-            captureSound.play();
+            // const captureSound = new Audio("/iphone-camera-capture-6448.mp3"); // Ensure the file path is correct
+            // captureSound.play();
         }
     };
 
@@ -306,19 +352,20 @@ const WebRTCSources: React.FC = () => {
             // ขออนุญาตเชื่อมต่อกับ Serial Port
             const port = await (navigator as any).serial.requestPort();
             await port.open({ baudRate: 9600 }); // ตั้งค่า baud rate ให้ตรงกับอุปกรณ์
-    
+
             // อ่านข้อมูลจาก Serial Port
             const reader = port.readable.getReader();
-    
+
             while (true) {
+                console.log("test")
                 const { value, done } = await reader.read();
-                if (done) break; // ออกจากลูปเมื่อไม่มีข้อมูล
-    
+                // if (done) break; // ออกจากลูปเมื่อไม่มีข้อมูล
+
                 // แปลงข้อมูลจาก Uint8Array เป็นข้อความ
                 const text = new TextDecoder().decode(value);
                 console.log("Received:", text);
             }
-    
+
             reader.releaseLock();
             await port.close();
         } catch (error) {
@@ -337,10 +384,10 @@ const WebRTCSources: React.FC = () => {
                 <Select
                     labelId="video-select-label"
                     inputRef={videoSelectRef}
-                    onChange={() =>
+                    onChange={(event) =>
                         startStream(
-                            videoSelectRef.current?.value || "",
-                            // audioSelectRef.current?.value || ""
+                            "f8260ce8037a2f65bf5ea492323205573fb014cafd656abc05cf927ada788a0b",
+                            "efa8bd30810341b5edea2a00abf204e8d0ff71e66535b08977a05556c96f0c57"
                         )
                     }
                     defaultValue=""
@@ -354,15 +401,15 @@ const WebRTCSources: React.FC = () => {
                 </Select>
             </FormControl>
 
-            {/* <FormControl fullWidth margin="normal">
+            <FormControl fullWidth margin="normal">
                 <InputLabel id="audio-select-label">Select Audio Source</InputLabel>
                 <Select
                     labelId="audio-select-label"
                     inputRef={audioSelectRef}
-                    onChange={() =>
+                    onChange={(event) =>
                         startStream(
-                            videoSelectRef.current?.value || "",
-                            audioSelectRef.current?.value || ""
+                            "f8260ce8037a2f65bf5ea492323205573fb014cafd656abc05cf927ada788a0b",
+                            "efa8bd30810341b5edea2a00abf204e8d0ff71e66535b08977a05556c96f0c57"
                         )
                     }
                     defaultValue=""
@@ -374,8 +421,7 @@ const WebRTCSources: React.FC = () => {
                         </MenuItem>
                     ))}
                 </Select>
-            </FormControl> */}
-
+            </FormControl>
             <Box>
                 <Typography variant="h6" gutterBottom>
                     Video Output
@@ -403,6 +449,9 @@ const WebRTCSources: React.FC = () => {
 
             <Typography variant="h6" sx={{ marginTop: 2 }}>
                 Image Capture {capturedImages.length} Pic
+            </Typography>
+            <Typography variant="h6" sx={{ marginTop: 2 }}>
+                Audio Level: {audioLevel}
             </Typography>
 
             <Box sx={{ display: "flex", marginTop: 2, flexWrap: "nowrap", overflowX: "auto", width: "500px" }}>
