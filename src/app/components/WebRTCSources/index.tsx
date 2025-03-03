@@ -28,11 +28,13 @@ const WebRTCSources: React.FC = () => {
     const analyserRef = useRef<AnalyserNode | null>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
 
+    const videoDeviceIdRef = useRef<string | null>(null);
+    const audioDeviceIdRef = useRef<string | null>(null);
+
     useEffect(() => {
         const getDevices = async () => {
             try {
                 const devices = await navigator.mediaDevices.enumerateDevices();
-                console.log("ddd", devices)
                 setVideoDevices(devices.filter((device) => device.kind === "videoinput"));
                 setAudioDevices(devices.filter((device) => device.kind === "audioinput"));
             } catch (error) {
@@ -90,6 +92,9 @@ const WebRTCSources: React.FC = () => {
         try {
             stopStream(currentStream);
 
+            videoDeviceIdRef.current = videoDeviceId
+            audioDeviceIdRef.current = audioDeviceId
+
             const constraints: MediaStreamConstraints = {
                 video: {
                     deviceId: videoDeviceId ? { exact: videoDeviceId } : undefined,
@@ -108,7 +113,7 @@ const WebRTCSources: React.FC = () => {
             setCurrentStream(stream);
             setupAudioAnalyser(stream);
 
-            detectMotion();
+            // detectMotion();
         } catch (error) {
             console.error("Error accessing media devices:", error);
         }
@@ -140,16 +145,17 @@ const WebRTCSources: React.FC = () => {
             for (let i = 0; i < bufferLength; i++) {
                 sum += dataArray[i];
             }
-            const average = sum / bufferLength;
+            const average = Math.ceil(sum / bufferLength);
             setAudioLevel(average);  // Set the audio level state
-            if (average > 5 && oneShot) {
+            if (average > 15 && oneShot) {
                 oneShot = false;
                 captureImage();
-            } else if (average <= 0) {
+            } else if (average <= 5) {
                 oneShot = true;
             }
 
-            console.log("oneShot2", oneShot)
+            console.log(oneShot, average)
+
             requestAnimationFrame(monitorAudioLevel);
         };
 
@@ -304,8 +310,8 @@ const WebRTCSources: React.FC = () => {
             setCapturedImages((prevImages) => [...prevImages, imageDataUrl]);
 
             // Play sound after capturing image
-            // const captureSound = new Audio("/iphone-camera-capture-6448.mp3"); // Ensure the file path is correct
-            // captureSound.play();
+            const captureSound = new Audio("/iphone-camera-capture-6448.mp3"); // Ensure the file path is correct
+            captureSound.play();
         }
     };
 
@@ -384,11 +390,13 @@ const WebRTCSources: React.FC = () => {
                 <Select
                     labelId="video-select-label"
                     inputRef={videoSelectRef}
-                    onChange={(event) =>
+                    onChange={(event) => {
+                        console.log(event.target.name, event.target.value)
                         startStream(
-                            "f8260ce8037a2f65bf5ea492323205573fb014cafd656abc05cf927ada788a0b",
-                            "efa8bd30810341b5edea2a00abf204e8d0ff71e66535b08977a05556c96f0c57"
+                            event.target.value || "",
+                            audioDeviceIdRef.current || ""
                         )
+                    }
                     }
                     defaultValue=""
                 >
@@ -408,8 +416,8 @@ const WebRTCSources: React.FC = () => {
                     inputRef={audioSelectRef}
                     onChange={(event) =>
                         startStream(
-                            "f8260ce8037a2f65bf5ea492323205573fb014cafd656abc05cf927ada788a0b",
-                            "efa8bd30810341b5edea2a00abf204e8d0ff71e66535b08977a05556c96f0c57"
+                            videoDeviceIdRef.current || "",
+                            event.target.value || ""
                         )
                     }
                     defaultValue=""
@@ -506,7 +514,7 @@ const WebRTCSources: React.FC = () => {
                 </Box>
             )}
 
-            <Button variant='contained' onClick={connectSerial}>Connect Serial Port</Button>
+            {/* <Button variant='contained' onClick={connectSerial}>Connect Serial Port</Button> */}
         </Box>
     );
 };

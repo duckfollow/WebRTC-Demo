@@ -29,8 +29,8 @@ const Home: React.FC = () => {
   return (
     <div className={styles.page}>
       <main className={styles.main}>
-        <h1>Waiting for Trigger...</h1>
-        <h1>{message}</h1>
+        {/* <h1>Waiting for Trigger...</h1>
+        <h1>{message}</h1> */}
         <WebRTCSources />
       </main>
     </div>
