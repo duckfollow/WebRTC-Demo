@@ -5,7 +5,7 @@ import { Box, Typography, MenuItem, Select, FormControl, InputLabel, Button } fr
 
 type MediaDevice = MediaDeviceInfo;
 
-const WebRTCSources: React.FC = () => {
+const WebRTCSourcesSound: React.FC = () => {
     const [videoDevices, setVideoDevices] = useState<MediaDevice[]>([]);
     const [audioDevices, setAudioDevices] = useState<MediaDevice[]>([]);
     const [currentStream, setCurrentStream] = useState<MediaStream | null>(null);
@@ -28,13 +28,13 @@ const WebRTCSources: React.FC = () => {
     const analyserRef = useRef<AnalyserNode | null>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
 
-    const videoDeviceIdRef = useRef<string | null>(null);
-    const audioDeviceIdRef = useRef<string | null>(null);
+    const [listDevices, setListDevices] = useState<any>()
 
     useEffect(() => {
         const getDevices = async () => {
             try {
                 const devices = await navigator.mediaDevices.enumerateDevices();
+                setListDevices(devices)
                 setVideoDevices(devices.filter((device) => device.kind === "videoinput"));
                 setAudioDevices(devices.filter((device) => device.kind === "audioinput"));
             } catch (error) {
@@ -92,14 +92,11 @@ const WebRTCSources: React.FC = () => {
         try {
             stopStream(currentStream);
 
-            videoDeviceIdRef.current = videoDeviceId
-            audioDeviceIdRef.current = audioDeviceId
-
             const constraints: MediaStreamConstraints = {
                 video: {
                     deviceId: videoDeviceId ? { exact: videoDeviceId } : undefined,
-                    width: { exact: 1920 },
-                    height: { exact: 1080 },
+                    width: { ideal: 2560 },
+                    height: { ideal: 1440 }
                 },
                 // audio: true,
                 audio: audioDeviceId ? { deviceId: { exact: audioDeviceId } } : true,
@@ -150,7 +147,7 @@ const WebRTCSources: React.FC = () => {
             if (average > 15 && oneShot) {
                 oneShot = false;
                 captureImage();
-            } else if (average <= 5) {
+            } else if (average <= 0) {
                 oneShot = true;
             }
 
@@ -160,138 +157,6 @@ const WebRTCSources: React.FC = () => {
         };
 
         monitorAudioLevel();
-    };
-
-    const detectMotion = () => {
-        if (!videoOutputRef.current || !canvasRef.current) return;
-
-        const video = videoOutputRef.current;
-        const canvas = canvasRef.current;
-        const context = canvas.getContext("2d");
-
-        let lastImageData: ImageData | null = null;
-        let motionDetectedAt: number | null = null; // Time when motion is detected
-        let oneShot = true
-
-        const checkForMotion = () => {
-            if (!context) return;
-
-            // Draw current video frame to canvas
-            context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-            const currentImageData = context.getImageData(0, 0, canvas.width, canvas.height);
-
-            if (lastImageData) {
-                const motion = isMotionDetected(lastImageData, currentImageData);
-                if (!motion) {
-                    // If motion is detected, record the time it was detected
-                    if (motionDetectedAt === null) {
-                        motionDetectedAt = Date.now();
-                    } else if (Date.now() - motionDetectedAt > 1000 && oneShot) {
-                        // If motion has been detected for more than 1 second, capture image
-                        captureImage();
-                        motionDetectedAt = null; // Reset after capturing image
-                        oneShot = false;
-                    }
-                } else {
-                    motionDetectedAt = null;
-                    oneShot = true
-                }
-                setNoMotionDetected(!motion);
-            }
-
-
-            lastImageData = currentImageData;
-
-            requestAnimationFrame(checkForMotion);
-        };
-
-        checkForMotion();
-    };
-
-    const isMotionDetected = (prev: ImageData, curr: ImageData): boolean => {
-        const threshold = 50; // Difference threshold
-        const motionPixels = 500; // Minimum pixel changes for motion
-        let diffCount = 0;
-
-        for (let i = 0; i < prev.data.length; i += 4) {
-            const diff =
-                Math.abs(prev.data[i] - curr.data[i]) + // Red
-                Math.abs(prev.data[i + 1] - curr.data[i + 1]) + // Green
-                Math.abs(prev.data[i + 2] - curr.data[i + 2]); // Blue
-
-            if (diff > threshold) {
-                diffCount++;
-            }
-
-            if (diffCount > motionPixels) {
-                return true; // Motion detected
-            }
-        }
-
-        return false; // No motion
-    };
-
-    const isImageUnique = (newImage: string) => {
-        // Check if there is any captured image
-        if (capturedImages.length === 0) return true; // No images, so the new image is unique
-
-        const lastCapturedImage = capturedImages[capturedImages.length - 1];
-
-        const newImageElement = new Image();
-        newImageElement.src = newImage;
-
-        // Create a canvas to compare images
-        const canvas = document.createElement("canvas");
-        const context = canvas.getContext("2d");
-
-        newImageElement.onload = () => {
-            canvas.width = newImageElement.width;
-            canvas.height = newImageElement.height;
-            context?.drawImage(newImageElement, 0, 0);
-
-            const newImageData = context?.getImageData(0, 0, canvas.width, canvas.height);
-
-            const previousImageElement = new Image();
-            previousImageElement.src = lastCapturedImage;
-
-            previousImageElement.onload = () => {
-                const prevCanvas = document.createElement("canvas");
-                const prevContext = prevCanvas.getContext("2d");
-
-                prevCanvas.width = previousImageElement.width;
-                prevCanvas.height = previousImageElement.height;
-                prevContext?.drawImage(previousImageElement, 0, 0);
-
-                const previousImageData = prevContext?.getImageData(0, 0, prevCanvas.width, prevCanvas.height);
-
-                // Compare the current image with the previous one
-                // console.log("check image unique", isImagesEqual(newImageData, previousImageData))
-                if (isImagesEqual(newImageData, previousImageData)) {
-                    return false; // Images are the same
-                }
-
-                return true; // Images are unique
-            };
-        };
-    };
-
-    // Function to compare two ImageData objects
-    const isImagesEqual = (imageData1?: ImageData | null, imageData2?: ImageData | null): boolean => {
-        if (!imageData1 || !imageData2) return false;
-
-        const data1 = imageData1.data;
-        const data2 = imageData2.data;
-
-        if (data1.length !== data2.length) return false;
-
-        for (let i = 0; i < data1.length; i++) {
-            if (data1[i] !== data2[i]) {
-                return false; // If any pixel is different, return false
-            }
-        }
-
-        return true; // Images are equal
     };
 
     const captureImage = () => {
@@ -305,14 +170,11 @@ const WebRTCSources: React.FC = () => {
 
         const imageDataUrl = canvas.toDataURL("image/png");
 
-        // Check if the image is unique before adding it
-        if (isImageUnique(imageDataUrl)) {
-            setCapturedImages((prevImages) => [...prevImages, imageDataUrl]);
+        setCapturedImages((prevImages) => [...prevImages, imageDataUrl]);
 
-            // Play sound after capturing image
-            const captureSound = new Audio("/iphone-camera-capture-6448.mp3"); // Ensure the file path is correct
-            captureSound.play();
-        }
+        // Play sound after capturing image
+        const captureSound = new Audio("/iphone-camera-capture-6448.mp3"); // Ensure the file path is correct
+        captureSound.play();
     };
 
     // ฟังก์ชันเริ่มบันทึกวิดีโอ
@@ -353,36 +215,10 @@ const WebRTCSources: React.FC = () => {
         window.URL.revokeObjectURL(url);
     };
 
-    async function connectSerial() {
-        try {
-            // ขออนุญาตเชื่อมต่อกับ Serial Port
-            const port = await (navigator as any).serial.requestPort();
-            await port.open({ baudRate: 9600 }); // ตั้งค่า baud rate ให้ตรงกับอุปกรณ์
-
-            // อ่านข้อมูลจาก Serial Port
-            const reader = port.readable.getReader();
-
-            while (true) {
-                console.log("test")
-                const { value, done } = await reader.read();
-                // if (done) break; // ออกจากลูปเมื่อไม่มีข้อมูล
-
-                // แปลงข้อมูลจาก Uint8Array เป็นข้อความ
-                const text = new TextDecoder().decode(value);
-                console.log("Received:", text);
-            }
-
-            reader.releaseLock();
-            await port.close();
-        } catch (error) {
-            console.error("Error:", error);
-        }
-    }
-
     return (
         <Box sx={{ padding: 2 }}>
             <Typography variant="h4" gutterBottom>
-                WebRTC: Select Video & Audio Sources
+                WebRTC Sound Detect: Select Video & Audio Sources
             </Typography>
 
             <FormControl fullWidth margin="normal">
@@ -391,10 +227,13 @@ const WebRTCSources: React.FC = () => {
                     labelId="video-select-label"
                     inputRef={videoSelectRef}
                     onChange={(event) => {
-                        console.log(event.target.name, event.target.value)
+                        const deviceId = event.target.value
+                        const groupId = listDevices.find((e: any) => e.deviceId === deviceId)?.groupId
+                        const audioDevice = listDevices.find((e: any) => e.groupId === groupId && e.kind === "audioinput")?.deviceId
+                        console.log("audioDevice", audioDevice)
                         startStream(
-                            event.target.value || "",
-                            audioDeviceIdRef.current || ""
+                            deviceId || "",
+                            audioDevice || ""
                         )
                     }
                     }
@@ -409,27 +248,6 @@ const WebRTCSources: React.FC = () => {
                 </Select>
             </FormControl>
 
-            <FormControl fullWidth margin="normal">
-                <InputLabel id="audio-select-label">Select Audio Source</InputLabel>
-                <Select
-                    labelId="audio-select-label"
-                    inputRef={audioSelectRef}
-                    onChange={(event) =>
-                        startStream(
-                            videoDeviceIdRef.current || "",
-                            event.target.value || ""
-                        )
-                    }
-                    defaultValue=""
-                >
-                    <MenuItem value="">Select Audio Source</MenuItem>
-                    {audioDevices.map((device) => (
-                        <MenuItem key={device.deviceId} value={device.deviceId}>
-                            {device.label || `Microphone ${audioDevices.indexOf(device) + 1}`}
-                        </MenuItem>
-                    ))}
-                </Select>
-            </FormControl>
             <Box>
                 <Typography variant="h6" gutterBottom>
                     Video Output
@@ -519,4 +337,4 @@ const WebRTCSources: React.FC = () => {
     );
 };
 
-export default WebRTCSources;
+export default WebRTCSourcesSound;

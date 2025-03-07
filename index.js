@@ -14,8 +14,8 @@ function createWindow() {
     })
 
     // Load Next.js app
-    // win.loadURL('http://localhost:3000')
-    win.loadFile('index.html');
+    win.loadURL('http://10.88.44.177/DicomWeb/')
+    // win.loadFile('index.html');
 
     win.on('closed', () => {
         win = null
